@@ -1,0 +1,5 @@
+thickness = 14
+N = 4
+cp_max = 5200
+Rc = 0.0001
+kappa = 1
