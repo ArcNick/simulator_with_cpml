@@ -125,21 +125,21 @@ __global__ void cpml_init_params(
 ) {
     int i = threadIdx.x;
     if (i >= cpml.thickness) return;
-    float x = 1.0 * (cpml.thickness - i) / cpml.thickness;
+    float x = 1.0 * i / cpml.thickness;
     cpml.damp[i] = cpml.damp0 * powf(x, cpml.N);
     cpml.alpha[i] = cpml.alpha0 * (1.0f - x);
 
     cpml.b[i] = exp(
-            -(cpml.damp[i] / cpml.kappa + cpml.alpha[i]) * dt
+        -(cpml.damp[i] / cpml.kappa + cpml.alpha[i]) * dt
     );
     cpml.a[i] = cpml.damp[i] * (cpml.b[i] - 1) / (
-            cpml.kappa * (cpml.damp[i] + cpml.kappa * cpml.alpha[i])
+        cpml.kappa * (cpml.damp[i] + cpml.kappa * cpml.alpha[i])
     );
     
 }
 
 void Cpml::init(Params::View gpar) {
-    damp0 = -(N + 1) * cp_max * log(Rc) / (2 * kappa * thickness);
+    damp0 = -(N + 1) * cp_max * log(Rc) / (2 * kappa * L);
     alpha0 = M_PI * gpar.fpeak;
     cpml_init_params<<<1, thickness>>>(
         view(), gpar.dx, gpar.dz, gpar.dt
@@ -156,7 +156,7 @@ __device__ int get_cpml_idx_x(
             res = max(res, arr[i]);
         }
     }
-    return res;
+    return thickness - 1 - res;
 }
 
 __device__ int get_cpml_idx_z(
@@ -169,7 +169,7 @@ __device__ int get_cpml_idx_z(
             res = max(res, arr[i]);
         }
     }
-    return res;
+    return thickness - 1 - res;
 }
 
 __global__ void cpml_update_psi_vel(
@@ -189,7 +189,7 @@ __global__ void cpml_update_psi_vel(
     int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness);
     int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness);
 
-    if (pml_idx_x_half_x >= 0) {
+    if (pml_idx_x_half_x < thickness) {
         float a_val = pml.a[pml_idx_x_half_x];
         float b_val = pml.b[pml_idx_x_half_x];
         float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
@@ -199,7 +199,7 @@ __global__ void cpml_update_psi_vel(
         PVZ_X(ix, iz) = b_val * PVZ_X(ix, iz) + a_val * dvz_dx;
     }
     
-    if (pml_idx_z_half_z >= 0) {
+    if (pml_idx_z_half_z < thickness) {
         float a_val = pml.a[pml_idx_z_half_z];
         float b_val = pml.b[pml_idx_z_half_z];
         float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
@@ -229,7 +229,7 @@ __global__ void cpml_update_psi_stress(
     int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness);
     int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness);
 
-    if (pml_idx_x_int >= 0) {
+    if (pml_idx_x_int < thickness) {
         float a_val = pml.a[pml_idx_x_int];
         float b_val = pml.b[pml_idx_x_int];
         float dsx_dx = Dx_int_8th(gc.sx, ix, iz, nx, dx);
@@ -238,7 +238,7 @@ __global__ void cpml_update_psi_stress(
         PSZ_X(ix, iz) = b_val * PSZ_X(ix, iz) + a_val * dsx_dx;
     }
     
-    if (pml_idx_z_int >= 0) {
+    if (pml_idx_z_int < thickness) {
         float a_val = pml.a[pml_idx_z_int];
         float b_val = pml.b[pml_idx_z_int];
         float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, dz);
@@ -248,7 +248,7 @@ __global__ void cpml_update_psi_stress(
     }
     
     if (ix < nx - 1 && iz < nz - 1) {
-        if (pml_idx_x_half_x >= 0) {
+        if (pml_idx_x_half_x < thickness) {
             float a_val = pml.a[pml_idx_x_half_x];
             float b_val = pml.b[pml_idx_x_half_x];
             float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
@@ -256,7 +256,7 @@ __global__ void cpml_update_psi_stress(
             PTXZ_X(ix, iz) = b_val * PTXZ_X(ix, iz) + a_val * dtxz_dx;
         }
         
-        if (pml_idx_z_half_z >= 0) {
+        if (pml_idx_z_half_z < thickness) {
             float a_val = pml.a[pml_idx_z_half_z];
             float b_val = pml.b[pml_idx_z_half_z];
             float dtxz_dz = Dz_half_8th(gc.txz, ix, iz, nx - 1, dz);

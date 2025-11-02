@@ -32,11 +32,11 @@ __global__ void update_stress(
     float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, dx);
     float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, dz);
     
-    if (get_cpml_idx_x(nx - 1, ix, pml.thickness) >= 0) {
+    if (get_cpml_idx_x(nx - 1, ix, pml.thickness) < pml.thickness) {
         dvx_dx = dvx_dx / pml.kappa + PVX_X(ix, iz);
         dvx_dz = dvx_dz / pml.kappa + PVX_Z(ix, iz);
     }
-    if (get_cpml_idx_z(nz - 1, iz, pml.thickness) >= 0) {
+    if (get_cpml_idx_z(nz - 1, iz, pml.thickness) < pml.thickness) {
         dvz_dz = dvz_dz / pml.kappa + PVZ_Z(ix, iz);
         dvz_dx = dvz_dx / pml.kappa + PVZ_X(ix, iz);
     }
@@ -69,24 +69,17 @@ __global__ void update_velocity(
     if (ix < 4 || ix >= nx - 4 || iz < 4 || iz >= nz - 4) {
         return;
     }
-    int pml_idx_x_int = get_cpml_idx_x(nx, ix, pml.thickness);
-    int pml_idx_z_int = get_cpml_idx_z(nz, iz, pml.thickness);
-    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, pml.thickness);
-    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, pml.thickness);
 
-    
-    
-    
     // vx : (nx-1) × nz
     if (ix < nx - 1) {
         float rho_half_x = (RHO(ix, iz) + RHO(ix + 1, iz)) * 0.5f;
         float dtxz_dz = Dz_half_8th(gc.txz, ix, iz, nx - 1, dz);
         float dsx_dx = Dx_int_8th(gc.sx, ix, iz, nx, dx);
 
-        if (get_cpml_idx_x(nx, ix, pml.thickness) >= 0) {
+        if (get_cpml_idx_x(nx, ix, pml.thickness) < pml.thickness) {
             dsx_dx = dsx_dx / pml.kappa + PSX_X(ix, iz);
         }
-        if (get_cpml_idx_z(nz - 1, iz, pml.thickness) >= 0) {
+        if (get_cpml_idx_z(nz - 1, iz, pml.thickness) < pml.thickness) {
             dtxz_dz = dtxz_dz / pml.kappa + PTXZ_Z(ix, iz);
         }
 
@@ -99,10 +92,10 @@ __global__ void update_velocity(
         float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
         float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, dz);
 
-        if (get_cpml_idx_x(nx - 1, ix, pml.thickness) >= 0) {
+        if (get_cpml_idx_x(nx - 1, ix, pml.thickness) < pml.thickness) {
             dtxz_dx = dtxz_dx / pml.kappa + PTXZ_X(ix, iz);
         }
-        if (get_cpml_idx_z(nz, iz, pml.thickness) >= 0) {
+        if (get_cpml_idx_z(nz, iz, pml.thickness) < pml.thickness) {
             dsz_dz = dsz_dz / pml.kappa + PSZ_Z(ix, iz);
         }
 

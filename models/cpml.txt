@@ -1,5 +1,5 @@
 thickness = 24
-N = 2
+N = 3
 cp_max = 5200
-Rc = 0.001
-kappa = 1.5
+Rc = 0.0001
+kappa = 1.2

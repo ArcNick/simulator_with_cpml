@@ -13,9 +13,12 @@ def visualize_snapshots():
             nz = int([line.split('=')[1].strip() for line in lines if 'nz =' in line][0])
     else:
         # 默认值
-        nx, nz = 600, 600
+        nx, nz = 601, 601
     
     print(f"使用网格尺寸: nx={nx}, nz={nz}")
+    
+    # 计算长宽比
+    aspect_ratio = nx / nz
     
     # 网格尺寸字典 - 使用实际参数
     grid_sizes = {
@@ -32,7 +35,6 @@ def visualize_snapshots():
     # 确保输出目录存在
     for component in grid_sizes.keys():
         (output_dir / component).mkdir(parents=True, exist_ok=True)
-    
     
     vmin, vmax = -0.06, 0.06
     
@@ -69,25 +71,30 @@ def visualize_snapshots():
                     
                 data = data.reshape(expected_nz, expected_nx)
                 
-                # 创建固定尺寸的图形
-                fig = plt.figure(figsize=(15, 10), dpi=150)
+                # 创建图形，使用固定长宽比
+                # 基础宽度，高度根据长宽比计算
+                base_width = 10  # 基础宽度
+                fig_height = base_width / aspect_ratio
                 
-                # 显示图像，使用统一的颜色范围
-                im = plt.imshow(data, cmap='seismic', aspect='auto', 
-                               vmin=-0.06, vmax=0.06,
-                               extent=[0, expected_nx, expected_nz, 0])
+                # 创建图形，不设置固定尺寸，让matplotlib自适应
+                fig, ax = plt.subplots(figsize=(base_width, fig_height), dpi=150)
                 
-                # 添加颜色条
-                cbar = plt.colorbar(im, shrink=0.8)
+                # 显示图像，使用统一的颜色范围和固定的长宽比
+                im = ax.imshow(data, cmap='seismic', aspect='equal', 
+                              vmin=vmin, vmax=vmax,
+                              extent=[0, expected_nx, expected_nz, 0])
+                
+                # 添加颜色条，使用默认位置让matplotlib自适应
+                cbar = plt.colorbar(im, ax=ax, shrink=0.8)
                 cbar.set_label('Amplitude', rotation=270, labelpad=15)
                 
                 # 设置标题和标签
                 title = f"{component} - {bin_file.stem}"
-                plt.title(title, fontsize=14, pad=20)
-                plt.xlabel('X Grid Points', fontsize=12)
-                plt.ylabel('Z Grid Points', fontsize=12)
+                ax.set_title(title, fontsize=14, pad=20)
+                ax.set_xlabel('X Grid Points', fontsize=12)
+                ax.set_ylabel('Z Grid Points', fontsize=12)
                 
-                # 保存为jpg，使用统一的bbox_inches设置
+                # 保存为jpg，使用tight布局让matplotlib自动调整
                 output_file = output_dir / component / f"{bin_file.stem}.jpg"
                 plt.savefig(output_file, dpi=150, bbox_inches='tight', 
                            facecolor='white', edgecolor='none', pad_inches=0.1)
