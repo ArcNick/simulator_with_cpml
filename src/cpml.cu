@@ -125,9 +125,9 @@ __global__ void cpml_init_params(
 ) {
     int i = threadIdx.x;
     if (i >= cpml.thickness) return;
-    float x = 1.0 * (cpml.thickness - i) * dx;
-    cpml.damp[i] = cpml.damp0 * powf(x / cpml.L, cpml.N);
-    cpml.alpha[i] = cpml.alpha0 * (cpml.L - x) / cpml.L;
+    float x = 1.0 * (cpml.thickness - i) / cpml.thickness;
+    cpml.damp[i] = cpml.damp0 * powf(x, cpml.N);
+    cpml.alpha[i] = cpml.alpha0 * (1.0f - x);
 
     cpml.b[i] = exp(
             -(cpml.damp[i] / cpml.kappa + cpml.alpha[i]) * dt
