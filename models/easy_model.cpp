@@ -1,8 +1,8 @@
 #include <cstdio>
 #include <cstdlib>
-float a[800][800];
+float a[600][600];
 int main() {
-    int nz = 800, nx = 800;
+    int nz = 600, nx = 600;
     FILE *fp = fopen("rho.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {

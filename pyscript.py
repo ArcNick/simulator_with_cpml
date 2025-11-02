@@ -13,7 +13,7 @@ def visualize_snapshots():
             nz = int([line.split('=')[1].strip() for line in lines if 'nz =' in line][0])
     else:
         # 默认值
-        nx, nz = 800, 800
+        nx, nz = 600, 600
     
     print(f"使用网格尺寸: nx={nx}, nz={nz}")
     
@@ -70,10 +70,10 @@ def visualize_snapshots():
                 data = data.reshape(expected_nz, expected_nx)
                 
                 # 创建固定尺寸的图形
-                fig = plt.figure(figsize=(10, 10), dpi=150)
+                fig = plt.figure(figsize=(15, 10), dpi=150)
                 
                 # 显示图像，使用统一的颜色范围
-                im = plt.imshow(data, cmap='seismic', aspect='equal', 
+                im = plt.imshow(data, cmap='seismic', aspect='auto', 
                                vmin=-0.06, vmax=0.06,
                                extent=[0, expected_nx, expected_nz, 0])
                 
