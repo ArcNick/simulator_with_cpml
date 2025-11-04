@@ -34,11 +34,11 @@ __global__ void update_stress(
     float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, dx);
     float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, dz);
     
-    if (get_cpml_idx_x(nx - 1, ix, pml.thickness) < pml.thickness) {
+    if (get_cpml_idx_x(nx - 1, ix, pml.thickness - 1) < pml.thickness - 1) {
         dvx_dx = dvx_dx / pml.kappa + PVX_X(ix, iz);
         dvx_dz = dvx_dz / pml.kappa + PVX_Z(ix, iz);
     }
-    if (get_cpml_idx_z(nz - 1, iz, pml.thickness) < pml.thickness) {
+    if (get_cpml_idx_z(nz - 1, iz, pml.thickness - 1) < pml.thickness - 1) {
         dvz_dz = dvz_dz / pml.kappa + PVZ_Z(ix, iz);
         dvz_dx = dvz_dx / pml.kappa + PVZ_X(ix, iz);
     }
@@ -78,7 +78,7 @@ __global__ void update_velocity(
         if (get_cpml_idx_x(nx, ix, pml.thickness) < pml.thickness) {
             dsx_dx = dsx_dx / pml.kappa + PSX_X(ix, iz);
         }
-        if (get_cpml_idx_z(nz - 1, iz, pml.thickness) < pml.thickness) {
+        if (get_cpml_idx_z(nz - 1, iz, pml.thickness - 1) < pml.thickness - 1) {
             dtxz_dz = dtxz_dz / pml.kappa + PTXZ_Z(ix, iz);
         }
 
@@ -91,7 +91,7 @@ __global__ void update_velocity(
         float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
         float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, dz);
 
-        if (get_cpml_idx_x(nx - 1, ix, pml.thickness) < pml.thickness) {
+        if (get_cpml_idx_x(nx - 1, ix, pml.thickness - 1) < pml.thickness - 1) {
             dtxz_dx = dtxz_dx / pml.kappa + PTXZ_X(ix, iz);
         }
         if (get_cpml_idx_z(nz, iz, pml.thickness) < pml.thickness) {
