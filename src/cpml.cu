@@ -152,7 +152,7 @@ __device__ int get_cpml_idx_x(
     int res = -1;
     int arr[] = {ix, lx - 1 - ix};
     for (int i = 0; i < 2; i++) {
-        if (arr[i] < thickness) {
+        if (0 <= arr[i] && arr[i] < thickness) {
             res = max(res, arr[i]);
         }
     }
@@ -165,7 +165,7 @@ __device__ int get_cpml_idx_z(
     int res = -1;
     int arr[] = {iz, lz - 1 - iz};
     for (int i = 0; i < 2; i++) {
-        if (arr[i] < thickness) {
+        if (0 <= arr[i] && arr[i] < thickness) {
             res = max(res, arr[i]);
         }
     }
@@ -186,10 +186,10 @@ __global__ void cpml_update_psi_vel(
         return;
     }
 
-    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness);
-    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness);
+    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness - 1);
+    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness - 1);
 
-    if (pml_idx_x_half_x < thickness) {
+    if (pml_idx_x_half_x < thickness - 1) {
         float a_val = pml.a[pml_idx_x_half_x];
         float b_val = pml.b[pml_idx_x_half_x];
         float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
@@ -198,8 +198,8 @@ __global__ void cpml_update_psi_vel(
         PVX_X(ix, iz) = b_val * PVX_X(ix, iz) + a_val * dvx_dx;
         PVZ_X(ix, iz) = b_val * PVZ_X(ix, iz) + a_val * dvz_dx;
     }
-    
-    if (pml_idx_z_half_z < thickness) {
+
+    if (pml_idx_z_half_z < thickness - 1) {
         float a_val = pml.a[pml_idx_z_half_z];
         float b_val = pml.b[pml_idx_z_half_z];
         float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
@@ -226,8 +226,8 @@ __global__ void cpml_update_psi_stress(
 
     int pml_idx_x_int = get_cpml_idx_x(nx, ix, thickness);
     int pml_idx_z_int = get_cpml_idx_z(nz, iz, thickness);
-    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness);
-    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness);
+    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness - 1);
+    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness - 1);
 
     if (pml_idx_x_int < thickness) {
         float a_val = pml.a[pml_idx_x_int];
@@ -248,15 +248,15 @@ __global__ void cpml_update_psi_stress(
     }
     
     if (ix < nx - 1 && iz < nz - 1) {
-        if (pml_idx_x_half_x < thickness) {
+        if (pml_idx_x_half_x < thickness - 1) {
             float a_val = pml.a[pml_idx_x_half_x];
             float b_val = pml.b[pml_idx_x_half_x];
             float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
 
             PTXZ_X(ix, iz) = b_val * PTXZ_X(ix, iz) + a_val * dtxz_dx;
         }
-        
-        if (pml_idx_z_half_z < thickness) {
+
+        if (pml_idx_z_half_z < thickness - 1) {
             float a_val = pml.a[pml_idx_z_half_z];
             float b_val = pml.b[pml_idx_z_half_z];
             float dtxz_dz = Dz_half_8th(gc.txz, ix, iz, nx - 1, dz);

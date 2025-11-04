@@ -19,10 +19,13 @@ int main() {
     // 初始化并读取模型
     Grid_Model gm_readin(nx, nz, HOST_MEM);
     Grid_Model gm_device(nx, nz, DEVICE_MEM);
-    std::array<const char *, 3> files = {
+    std::array<const char *, 6> files = {
         "models/vp.bin",
         "models/vs.bin",
-        "models/rho.bin"
+        "models/rho.bin",
+        "models/epsilon.bin",
+        "models/delta.bin",
+        "models/gamma.bin"
     };
     gm_readin.read(files);
 
@@ -44,6 +47,11 @@ int main() {
         exit(1);
     }
 
+    // 检查PPW条件
+    float ppw = 1200.0f / (2.1 * par.fpeak * par.dx);
+    printf("PPW: 最小ppw = 7, 实际ppw = %f\n", ppw);
+    
+
     // 迁移CPU上模型到GPU上
     gm_device.memcpy_to_device_from(gm_readin);
 
@@ -51,8 +59,8 @@ int main() {
     Grid_Core gc_host(nx, nz, HOST_MEM);
     Grid_Core gc_device(nx, nz, DEVICE_MEM);
 
-    // 计算拉梅系数
-    gm_device.calc_lame();
+    // 计算刚度参数
+    gm_device.calc_stiffness();
     cudaDeviceSynchronize();
 
     // 生成雷克子波

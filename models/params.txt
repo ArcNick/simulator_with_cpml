@@ -1,10 +1,10 @@
-fpeak = 30.0
+fpeak = 25.0
 nx = 601
 nz = 601
-dx = 2.0
-dz = 2.0
-nt = 11000
-dt = 0.0001
+dx = 3.0
+dz = 3.0
+nt = 12000
+dt = 0.00008
 posx = 300
 posz = 150
 snapshot = 200

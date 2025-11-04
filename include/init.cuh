@@ -9,8 +9,16 @@
 #define VP(ix, iz) ((gm).vp[(iz) * (gm).nx + (ix)])
 #define VS(ix, iz) ((gm).vs[(iz) * (gm).nx + (ix)])
 #define RHO(ix, iz) ((gm).rho[(iz) * (gm).nx + (ix)])
-#define MU(ix, iz) ((gm).mu[(iz) * (gm).nx + (ix)])
-#define LMD(ix, iz) ((gm).lmd[(iz) * (gm).nx + (ix)])
+// #define MU(ix, iz) ((gm).mu[(iz) * (gm).nx + (ix)])
+// #define LMD(ix, iz) ((gm).lmd[(iz) * (gm).nx + (ix)])
+#define EPS(ix, iz) ((gm).epsilon[(iz) * (gm).nx + (ix)])
+#define DEL(ix, iz) ((gm).delta[(iz) * (gm).nx + (ix)])
+#define GAM(ix, iz) ((gm).gamma[(iz) * (gm).nx + (ix)])
+#define C11(ix, iz) ((gm).C11[(iz) * (gm).nx + (ix)])
+#define C13(ix, iz) ((gm).C13[(iz) * (gm).nx + (ix)])
+#define C33(ix, iz) ((gm).C33[(iz) * (gm).nx + (ix)])
+#define C44(ix, iz) ((gm).C44[(iz) * (gm).nx + (ix)])
+#define C66(ix, iz) ((gm).C66[(iz) * (gm).nx + (ix)])
 
 // 核心网格
 #define VX(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix)])
@@ -55,25 +63,35 @@ public:
 
 class Grid_Model {
 public:
-    float *vp, *vs, *rho, *mu, *lmd;
+    float *vp0, *vs0, *rho;
+    float *epsilon, *delta, *gamma;
+    float *C11, *C13, *C33, *C44, *C66;
+
     int nx, nz;
     bool mem_location;  // 0 : host, 1 : device
 
     struct View {
-        float *vp, *vs, *rho, *mu, *lmd;
+        float *vp0, *vs0, *rho;
+        float *epsilon, *delta, *gamma;
+        float *C11, *C13, *C33, *C44, *C66;
         int nx, nz;
         bool mem_location;
     };
     View view() {
-        return (View){vp, vs, rho, mu, lmd, nx, nz, mem_location};
+        return (View){
+            vp0, vs0, rho, 
+            epsilon, delta, gamma, 
+            C11, C13, C33, C44, C66, 
+            nx, nz, mem_location
+        };
     }
 
     Grid_Model(int nx, int nz, bool mem_location);
     ~Grid_Model();
 
-    void read(const std::array<const char *, 3> &files);
+    void read(const std::array<const char *, 6> &files);
     void memcpy_to_device_from(const Grid_Model &rhs);
-    void calc_lame();
+    void calc_stiffness();
 };
 
 class Grid_Core {
@@ -97,10 +115,12 @@ public:
     void memcpy_to_host_from(const Grid_Core &rhs);
 };
 
-__global__ void lame(
-    float *vp, float *vs, float *rho, float *mu, float *lmd,
-    int nx, int nz, bool mem_location
-);
+// __global__ void lame(
+//     float *vp, float *vs, float *rho, float *mu, float *lmd,
+//     int nx, int nz, bool mem_location
+// );
+
+__global__ void thomsen_to_stiffness(Grid_Model::View gm);
 
 float *ricker_wave(int nt, float dt, float fpeak);
 

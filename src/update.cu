@@ -24,8 +24,10 @@ __global__ void update_stress(
         return;
     }
 
-    float lmd = LMD(ix, iz);
-    float mu_int = MU(ix, iz);
+    float C11 = C11(ix, iz);
+    float C13 = C13(ix, iz);
+    float C33 = C33(ix, iz);
+    // float C44 = C44(ix, iz);
     
     float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
     float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
@@ -41,19 +43,16 @@ __global__ void update_stress(
         dvz_dx = dvz_dx / pml.kappa + PVZ_X(ix, iz);
     }
 
-    SX(ix, iz) += dt * (
-        (lmd + 2.0f * mu_int) * dvx_dx + lmd * dvz_dz
-    );
-    SZ(ix, iz) += dt * (
-        lmd * dvx_dx + (lmd + 2.0f * mu_int) * dvz_dz
-    );
+    SX(ix, iz) += dt * (C11 * dvx_dx + C13 * dvz_dz);
+    SZ(ix, iz) += dt * (C13 * dvx_dx + C33 * dvz_dz);
 
     // txz : (nx-1) × (nz-1)
     if (ix < nx - 1 && iz < nz - 1) {
-        float mu_half = (MU(ix, iz) + MU(ix + 1, iz)) * 0.5f;
-        TXZ(ix, iz) += dt * mu_half * (
-            dvz_dx + dvx_dz
+        float C44_half = 0.25 * (
+            C44(ix, iz) + C44(ix + 1, iz) + 
+            C44(ix, iz + 1) + C44(ix + 1, iz + 1)
         );
+        TXZ(ix, iz) += dt * C44_half * (dvz_dx + dvx_dz);
     }
 }
 
