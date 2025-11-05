@@ -15,6 +15,7 @@ struct Array_Info {
     std::string name;
     Array_Info(float* d, int lx, int lz, const std::string &n) 
         : data(d), lenx(lx), lenz(lz), name(n) {}
+    ~Array_Info() = default;
 };
 
 // 控制波场快照输出的类

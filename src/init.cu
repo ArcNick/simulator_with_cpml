@@ -318,7 +318,7 @@ __global__ void thomsen_to_stiffness(Grid_Model::View gm) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (ix >= gm.nx && iz >= gm.nz) {
+    if (ix >= gm.nx || iz >= gm.nz) {
         return;
     }
 

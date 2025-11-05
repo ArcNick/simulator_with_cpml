@@ -8,6 +8,7 @@
             "args": [
                 "-rdc=true",
                 "-g", "-G",
+                "-O2",
                 "-I", "${workspaceFolder}/include",
                 "src/*.cu",
                 "-o", "bin/main_debug",
