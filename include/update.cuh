@@ -18,4 +18,6 @@ __global__ void update_velocity(
     Cpml::View pml, float dx, float dz, float dt
 );
 
+__global__ void apply_free_boundary(Grid_Core::View gc);
+
 #endif

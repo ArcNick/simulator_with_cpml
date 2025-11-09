@@ -160,42 +160,34 @@ __global__ void cpml_init_params(
     Cpml::View cpml, float dx, float dz, float dt
 ) {
     int i = threadIdx.x;
-    if (i >= cpml.thickness) return;
-    float x_int = 1.0 * i / cpml.thickness;
-    float x_half = (i + 0.5f) / (cpml.thickness - 1);
+    if (i < cpml.thickness) {
+        // 整网格点
+        float x_int = 1.0 * i / cpml.thickness;
+        cpml.damp_int[i] = cpml.damp0 * powf(x_int, cpml.N);
+        cpml.alpha_int[i] = cpml.alpha0 * (1.0f - x_int);
+        cpml.kappa_int[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_int, cpml.N);
 
-    // 整网格点
-    cpml.damp_int[i] = cpml.damp0 * powf(x_int, cpml.N);
-    cpml.alpha_int[i] = cpml.alpha0 * (1.0f - x_int);
-    cpml.kappa_int[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_int, cpml.N);
+        cpml.b_int[i] = exp(
+            -(cpml.damp_int[i] / cpml.kappa_int[i] + cpml.alpha_int[i]) * dt
+        );
+        cpml.a_int[i] = cpml.damp_int[i] * (cpml.b_int[i] - 1) / (
+            cpml.kappa_int[i] * (cpml.damp_int[i] + cpml.kappa_int[i] * cpml.alpha_int[i])
+        );
+    }
+    if (i < cpml.thickness - 1) {
+        // 半网格点
+        float x_half = (i + 0.5f) / (cpml.thickness);
+        cpml.damp_half[i] = cpml.damp0 * powf(x_half, cpml.N);
+        cpml.alpha_half[i] = cpml.alpha0 * (1.0f - x_half);
+        cpml.kappa_half[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_half, cpml.N);
 
-    cpml.b_int[i] = exp(
-        -(cpml.damp_int[i] / cpml.kappa_int[i] + cpml.alpha_int[i]) * dt
-    );
-    cpml.a_int[i] = cpml.damp_int[i] * (cpml.b_int[i] - 1) / (
-        cpml.kappa_int[i] * (cpml.damp_int[i] + cpml.kappa_int[i] * cpml.alpha_int[i])
-    );
-
-    // 半网格点
-    cpml.damp_half[i] = cpml.damp0 * powf(x_half, cpml.N);
-    cpml.alpha_half[i] = cpml.alpha0 * (1.0f - x_half);
-    cpml.kappa_half[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_half, cpml.N);
-
-    cpml.b_half[i] = exp(
-        -(cpml.damp_half[i] / cpml.kappa_half[i] + cpml.alpha_half[i]) * dt
-    );
-    cpml.a_half[i] = cpml.damp_half[i] * (cpml.b_half[i] - 1) / (
-        cpml.kappa_half[i] * (cpml.damp_half[i] + cpml.kappa_half[i] * cpml.alpha_half[i])
-    );
-    // 在cpml_init_params核函数中添加
-if (i == 0) {
-    printf("Left PML: damp=%f, kappa=%f, a=%f, b=%f\n", 
-           cpml.damp_half[i], cpml.kappa_half[i], cpml.a_half[i], cpml.b_half[i]);
-}
-if (i == cpml.thickness-1) {
-    printf("Right PML: damp=%f, kappa=%f, a=%f, b=%f\n", 
-           cpml.damp_half[i], cpml.kappa_half[i], cpml.a_half[i], cpml.b_half[i]);
-}
+        cpml.b_half[i] = exp(
+            -(cpml.damp_half[i] / cpml.kappa_half[i] + cpml.alpha_half[i]) * dt
+        );
+        cpml.a_half[i] = cpml.damp_half[i] * (cpml.b_half[i] - 1) / (
+            cpml.kappa_half[i] * (cpml.damp_half[i] + cpml.kappa_half[i] * cpml.alpha_half[i])
+        );
+    }
 }
 
 void Cpml::init(Params::View gpar) {
@@ -206,11 +198,19 @@ void Cpml::init(Params::View gpar) {
     );
 }
 
-__device__ int get_cpml_idx_x(
-    const int &lx, const int &ix, const int &thickness
-) {
+__device__ int get_cpml_idx_x_int(int lx, int ix, int thickness) {
     int res = -1;
-    int arr[] = {ix - 4, lx - 1 - ix - 4};
+    int arr[] = {ix - 4, lx - 1 - ix - 5};
+    for (int i = 0; i < 2; i++) {
+        if (0 <= arr[i] && arr[i] < thickness) {
+            res = arr[i];
+        }
+    }
+    return thickness - 1 - res;
+}
+__device__ int get_cpml_idx_z_int(int lz, int iz, int thickness) {
+    int res = -1;
+    int arr[] = {iz - 4, lz - 1 - iz - 5};
     for (int i = 0; i < 2; i++) {
         if (0 <= arr[i] && arr[i] < thickness) {
             res = arr[i];
@@ -219,17 +219,25 @@ __device__ int get_cpml_idx_x(
     return thickness - 1 - res;
 }
 
-__device__ int get_cpml_idx_z(
-    const int &lz, const int &iz, const int &thickness
-) {
+__device__ int get_cpml_idx_x_half(int lx, int ix, int thickness) {
     int res = -1;
-    int arr[] = {iz - 4, lz - 1 - iz - 4};
+    int arr[] = {ix - 5, lx - 1 - ix - 4};
     for (int i = 0; i < 2; i++) {
         if (0 <= arr[i] && arr[i] < thickness) {
             res = arr[i];
         }
     }
     return thickness - 1 - res;
+}
+__device__ int get_cpml_idx_z_half(int lz, int iz, int thickness) {
+    int res = -1;
+    int arr[] = {iz - 5, lz - 1 - iz - 4};
+    for (int i = 0; i < 2; i++) {
+        if (0 <= arr[i] && arr[i] < thickness) {
+            res = arr[i];
+        }
+    }
+    return thickness - 1 - res;    
 }
 
 __global__ void cpml_update_psi_vel(
@@ -242,13 +250,13 @@ __global__ void cpml_update_psi_vel(
     int nx = pml.nx, nz = pml.nz;
     int thickness = pml.thickness;
 
-    if (ix < 4 || ix >= nx - 4 || iz < 4 || iz >= nz - 4) {
+    if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
         return;
     }
-    int pml_idx_x_int = get_cpml_idx_x(nx, ix, thickness);
-    int pml_idx_z_int = get_cpml_idx_z(nz, iz, thickness);
-    int pml_idx_x_half = get_cpml_idx_x(nx - 1, ix, thickness - 1);
-    int pml_idx_z_half = get_cpml_idx_z(nz - 1, iz, thickness - 1);
+    int pml_idx_x_int = get_cpml_idx_x_int(nx, ix, thickness);
+    int pml_idx_z_int = get_cpml_idx_z_int(nz, iz, thickness);
+    int pml_idx_x_half = get_cpml_idx_x_half(nx - 1, ix, thickness - 1);
+    int pml_idx_z_half = get_cpml_idx_z_half(nz - 1, iz, thickness - 1);
 
     if (pml_idx_x_int < thickness) {
         float a_int = pml.a_int[pml_idx_x_int];
@@ -265,34 +273,15 @@ __global__ void cpml_update_psi_vel(
     if (pml_idx_x_half < thickness - 1) {
         float a_half = pml.a_half[pml_idx_x_half];
         float b_half = pml.b_half[pml_idx_x_half];
-        float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
+        float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx, ix, iz, nx - 1, dx));
         PVX_X(ix, iz) = b_half * PVX_X(ix, iz) + a_half * dvx_dx;
     }
     if (pml_idx_z_half < thickness - 1) {
         float a_half = pml.a_half[pml_idx_z_half];
         float b_half = pml.b_half[pml_idx_z_half];
-        float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
+        float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz, ix, iz, nx, dz));
         PVZ_Z(ix, iz) = b_half * PVZ_Z(ix, iz) + a_half * dvz_dz;
     }
-    // if (pml_idx_x_half_x < thickness - 1) {
-    //     float a_half = pml.a_half[pml_idx_x_half_x];
-    //     float b_half = pml.b_half[pml_idx_x_half_x];
-    //     float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
-    //     float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, dx);
-
-    //     PVX_X(ix, iz) = b_half * PVX_X(ix, iz) + a_half * dvx_dx;
-    //     PVZ_X(ix, iz) = b_half * PVZ_X(ix, iz) + a_half * dvz_dx;
-    // }
-
-    // if (pml_idx_z_half_z < thickness - 1) {
-    //     float a_val = pml.a_half[pml_idx_z_half_z];
-    //     float b_val = pml.b_half[pml_idx_z_half_z];
-    //     float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
-    //     float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, dz);
-
-    //     PVX_Z(ix, iz) = b_val * PVX_Z(ix, iz) + a_val * dvx_dz;
-    //     PVZ_Z(ix, iz) = b_val * PVZ_Z(ix, iz) + a_val * dvz_dz;
-    // }
 }
 
 __global__ void cpml_update_psi_stress(
@@ -305,14 +294,14 @@ __global__ void cpml_update_psi_stress(
     int nx = pml.nx, nz = pml.nz;
     int thickness = pml.thickness;
 
-    if (ix < 4 || ix >= nx - 4 || iz < 4 || iz >= nz - 4) {
+    if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
         return;
     }
 
-    int pml_idx_x_int = get_cpml_idx_x(nx, ix, thickness);
-    int pml_idx_z_int = get_cpml_idx_z(nz, iz, thickness);
-    int pml_idx_x_half = get_cpml_idx_x(nx - 1, ix, thickness - 1);
-    int pml_idx_z_half = get_cpml_idx_z(nz - 1, iz, thickness - 1);
+    int pml_idx_x_int = get_cpml_idx_x_int(nx, ix, thickness);
+    int pml_idx_z_int = get_cpml_idx_z_int(nz, iz, thickness);
+    int pml_idx_x_half = get_cpml_idx_x_half(nx - 1, ix, thickness - 1);
+    int pml_idx_z_half = get_cpml_idx_z_half(nz - 1, iz, thickness - 1);
 
     if (pml_idx_x_int < thickness) { 
         float a_int = pml.a_int[pml_idx_x_int];
@@ -333,13 +322,13 @@ __global__ void cpml_update_psi_stress(
     if (pml_idx_x_half < thickness - 1) {
         float a_half = pml.a_half[pml_idx_x_half];
         float b_half = pml.b_half[pml_idx_x_half];
-        float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
+        float dtxz_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.txz, ix, iz, nx - 1, dx));
         PTXZ_X(ix, iz) = b_half * PTXZ_X(ix, iz) + a_half * dtxz_dx;
     }
     if (pml_idx_z_half < thickness - 1) {
         float a_half = pml.a_half[pml_idx_z_half];
         float b_half = pml.b_half[pml_idx_z_half];
-        float dtxz_dz = Dz_half_8th(gc.txz, ix, iz, nx - 1, dz);
+        float dtxz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.txz, ix, iz, nx - 1, dz));
         PTXZ_Z(ix, iz) = b_half * PTXZ_Z(ix, iz) + a_half * dtxz_dz;
     }
 }

@@ -1,0 +1,2 @@
+nvcc -rdc=true -I include src/*.cu -o bin/main_debug -std=c++17
+./bin/main_debug

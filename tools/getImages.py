@@ -7,18 +7,29 @@ import multiprocessing as mp
 
 # 全局设置，避免重复计算
 STRESS_RANGE = (-0.02, 0.02)      # 应力分量范围
+STRESS_TXZ_RANGE = (-0.005, 0.005)  # txz分量单独的范围
 VELOCITY_RANGE = (-2e-9, 2e-9)    # 速度分量范围
+
+# 获取项目根目录
+script_dir = Path(__file__).parent  # tools目录
+project_root = script_dir.parent    # 项目根目录
 
 def get_grid_params():
     """获取网格参数，只执行一次"""
-    params_file = Path("models/params.txt")
+    params_file = project_root / "models" / "params.txt"
+    
+    print(f"正在查找参数文件: {params_file}")  # 添加调试信息
+    
     if params_file.exists():
+        print("找到参数文件，正在读取...")  # 添加调试信息
         with open(params_file, 'r') as f:
             lines = f.readlines()
             nx = int([line.split('=')[1].strip() for line in lines if 'nx =' in line][0])
             nz = int([line.split('=')[1].strip() for line in lines if 'nz =' in line][0])
+        print(f"从参数文件读取: nx={nx}, nz={nz}")  # 添加调试信息
     else:
-        nx, nz = 600, 600
+        print(f"警告: 未找到参数文件 {params_file}，使用默认值 nx=601, nz=601")  # 添加调试信息
+        nx, nz = 601, 601
     
     aspect_ratio = nx / nz
     
@@ -82,8 +93,8 @@ def visualize_snapshots_parallel():
     nx, nz, aspect_ratio, grid_sizes = get_grid_params()
     print(f"使用网格尺寸: nx={nx}, nz={nz}")
     
-    base_dir = Path("output")
-    output_dir = Path("snapshot_images")
+    base_dir = project_root / "output"
+    output_dir = project_root / "snapshot_images"
     
     # 预先创建所有输出目录
     for component in grid_sizes.keys():
@@ -96,7 +107,10 @@ def visualize_snapshots_parallel():
         print(f"准备分量: {component}")
         
         # 根据分量类型选择显示范围
-        if component in ["sx", "sz", "txz"]:
+        if component == "txz":
+            vmin, vmax = STRESS_TXZ_RANGE
+            range_type = "切应力"
+        elif component in ["sx", "sz"]:
             vmin, vmax = STRESS_RANGE
             range_type = "应力"
         else:  # vx, vz
@@ -151,8 +165,8 @@ def visualize_snapshots_sequential():
     nx, nz, aspect_ratio, grid_sizes = get_grid_params()
     print(f"使用网格尺寸: nx={nx}, nz={nz}")
     
-    base_dir = Path("output")
-    output_dir = Path("snapshot_images")
+    base_dir = project_root / "output"
+    output_dir = project_root / "snapshot_images"
     
     # 预先创建所有输出目录
     for component in grid_sizes.keys():
@@ -165,7 +179,10 @@ def visualize_snapshots_sequential():
         print(f"处理分量: {component}")
         
         # 根据分量类型选择显示范围
-        if component in ["sx", "sz", "txz"]:
+        if component == "txz":
+            vmin, vmax = STRESS_TXZ_RANGE
+            range_type = "切应力"
+        elif component in ["sx", "sz"]:
             vmin, vmax = STRESS_RANGE
             range_type = "应力"
         else:  # vx, vz
@@ -243,7 +260,7 @@ if __name__ == "__main__":
     # 如果内存有限，使用顺序版本
     
     # 先检查文件数量
-    base_dir = Path("output")
+    base_dir = project_root / "output"
     total_files = 0
     for component_dir in base_dir.iterdir():
         if component_dir.is_dir():
@@ -252,7 +269,7 @@ if __name__ == "__main__":
     
     print(f"检测到 {total_files} 个快照文件")
     
-    if total_files > 50:  # 文件较多时使用并行处理
+    if total_files > 24:  # 文件较多时使用并行处理
         print("使用并行处理模式")
         visualize_snapshots_parallel()
     else:  # 文件较少时使用顺序处理

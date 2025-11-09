@@ -104,6 +104,9 @@ int main() {
             par.dx, par.dz, par.dt
         );
 
+        // 自由边界
+        apply_free_boundary<<<gridSize, blockSize>>>(gc_device.view());
+
         if (it % 100 == 0) {
             printf("\r%%%0.2f finished.", 1.0f * it / nt * 100);
             fflush(stdout);
