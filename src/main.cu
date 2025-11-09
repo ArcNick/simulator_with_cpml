@@ -48,7 +48,7 @@ int main() {
     }
 
     // 检查PPW条件
-    float ppw = 2200.0f / (2.1 * par.fpeak * par.dx);
+    float ppw = 1900.0f / (2.1 * par.fpeak * par.dx);
     printf("PPW: 最小ppw = 7, 实际ppw = %f\n", ppw);
     
 

@@ -24,12 +24,18 @@ public:
     float Rc;                       // 反射系数
     float damp0;                    // 最大阻尼系数
     float alpha0;                   // 最大频移因子
-    float kappa;                    // 拉伸因子
+    float kappa0;                   // 最大拉伸因子
 
-    float *alpha;                   // 频移因子
-    float *damp;                    // 阻尼系数
-    float *a;                       // 卷积系数
-    float *b;                       // 衰减系数
+    float *alpha_int;
+    float *alpha_half;
+    float *damp_int;
+    float *damp_half;
+    float *a_int;
+    float *a_half;
+    float *b_int;
+    float *b_half;
+    float *kappa_int;
+    float *kappa_half;
 
     float *psi_vx_x, *psi_vx_z;     // 记忆变量
     float *psi_vz_x, *psi_vz_z;
@@ -48,12 +54,18 @@ public:
         float Rc;
         float damp0;
         float alpha0;
-        float kappa;
+        float kappa0;
 
-        float *alpha;
-        float *damp;
-        float *a;
-        float *b;
+        float *alpha_int;
+        float *alpha_half;
+        float *damp_int;
+        float *damp_half;
+        float *a_int;
+        float *a_half;
+        float *b_int;
+        float *b_half;
+        float *kappa_int;
+        float *kappa_half;
 
         float *psi_vx_x, *psi_vx_z;
         float *psi_vz_x, *psi_vz_z;
@@ -68,8 +80,11 @@ public:
     View view() {
         return (View){
             thickness, N, cp_max, L, Rc, 
-            damp0, alpha0, kappa,
-            alpha, damp, a, b,
+            damp0, alpha0, kappa0,
+            alpha_int, alpha_half, 
+            damp_int, damp_half, 
+            a_int, a_half, b_int, b_half, 
+            kappa_int, kappa_half,
             psi_vx_x, psi_vx_z,
             psi_vz_x, psi_vz_z,
             psi_sx_x, psi_sx_z,

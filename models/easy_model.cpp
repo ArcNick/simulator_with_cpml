@@ -3,18 +3,18 @@
 #include <string>
 #include <unordered_map>
 
-float a[600][600];
+float a[601][601];
 
 std::unordered_map<std::string, std::pair<float, float>> params;
 int main() {
-    int nz = 600, nx = 600;
+    int nz = 601, nx = 601;
 
-    params["vp0"] = {3800, 4500};
-    params["vs0"] = {2200, 2500};
-    params["rho"] = {2300, 2600};
-    params["epslion"] = {0.1, 0.25};
-    params["delta"] = {0.05, -0.05};
-    params["gamma"] = {0.08, 0.3};
+    params["vp0"] = {3600, 3600};
+    params["vs0"] = {1900, 1900};
+    params["rho"] = {2000, 2000};
+    params["epsilon"] = {0, 0};
+    params["delta"] = {0, 0};
+    params["gamma"] = {0, 0};
 
     FILE *fp = fopen("rho.bin", "wb");
     for (int i = 0; i < nz; i++) {

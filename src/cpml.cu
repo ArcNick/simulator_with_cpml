@@ -12,10 +12,16 @@ Cpml::Cpml(Params::View gpar, const char *file) {
     mem_location = DEVICE_MEM;
     L = thickness * gpar.dx;
 
-    cudaMalloc(&alpha, thickness * sizeof(float));
-    cudaMalloc(&damp, thickness * sizeof(float));
-    cudaMalloc(&a, thickness * sizeof(float));
-    cudaMalloc(&b, thickness * sizeof(float));
+    cudaMalloc(&alpha_int, thickness * sizeof(float));
+    cudaMalloc(&damp_int, thickness * sizeof(float));
+    cudaMalloc(&a_int, thickness * sizeof(float));
+    cudaMalloc(&b_int, thickness * sizeof(float));
+    cudaMalloc(&kappa_int, thickness * sizeof(float));
+    cudaMalloc(&alpha_half, thickness * sizeof(float));
+    cudaMalloc(&damp_half, thickness * sizeof(float));
+    cudaMalloc(&a_half, thickness * sizeof(float));
+    cudaMalloc(&b_half, thickness * sizeof(float));
+    cudaMalloc(&kappa_half, thickness * sizeof(float));
     cudaMalloc(&psi_vx_x, (nx - 1) * nz * sizeof(float));
     cudaMalloc(&psi_vx_z, (nx - 1) * nz * sizeof(float));
     cudaMalloc(&psi_vz_x, nx * (nz - 1) * sizeof(float));
@@ -27,10 +33,16 @@ Cpml::Cpml(Params::View gpar, const char *file) {
     cudaMalloc(&psi_txz_x, (nx - 1) * (nz - 1) * sizeof(float));
     cudaMalloc(&psi_txz_z, (nx - 1) * (nz - 1) * sizeof(float));
 
-    cudaMemset(alpha, 0, thickness * sizeof(float));
-    cudaMemset(damp, 0, thickness * sizeof(float));
-    cudaMemset(a, 0, thickness * sizeof(float));
-    cudaMemset(b, 0, thickness * sizeof(float));
+    cudaMemset(alpha_int, 0, thickness * sizeof(float));
+    cudaMemset(damp_int, 0, thickness * sizeof(float));
+    cudaMemset(a_int, 0, thickness * sizeof(float));
+    cudaMemset(b_int, 0, thickness * sizeof(float));
+    cudaMemset(kappa_int, 0, thickness * sizeof(float));
+    cudaMemset(alpha_half, 0, thickness * sizeof(float));
+    cudaMemset(damp_half, 0, thickness * sizeof(float));
+    cudaMemset(a_half, 0, thickness * sizeof(float));
+    cudaMemset(b_half, 0, thickness * sizeof(float));
+    cudaMemset(kappa_half, 0, thickness * sizeof(float));
     cudaMemset(psi_vx_x, 0, (nx - 1) * nz * sizeof(float));
     cudaMemset(psi_vx_z, 0, (nx - 1) * nz * sizeof(float));
     cudaMemset(psi_vz_x, 0, nx * (nz - 1) * sizeof(float));
@@ -46,21 +58,45 @@ Cpml::Cpml(Params::View gpar, const char *file) {
 }
 
 Cpml::~Cpml() {
-    if (alpha) {
-        cudaFree(alpha);
-        alpha = nullptr;
+    if (alpha_int) {
+        cudaFree(alpha_int);
+        alpha_int = nullptr;
     }
-    if (damp) {
-        cudaFree(damp);
-        damp = nullptr;
+    if (damp_int) {
+        cudaFree(damp_int);
+        damp_int = nullptr;
     }
-    if (a) {
-        cudaFree(a);
-        a = nullptr;
+    if (a_int) {
+        cudaFree(a_int);
+        a_int = nullptr;
     }
-    if (b) {
-        cudaFree(b);
-        b = nullptr;
+    if (b_int) {
+        cudaFree(b_int);
+        b_int = nullptr;
+    }
+    if (kappa_int) {
+        cudaFree(kappa_int);
+        kappa_int = nullptr;
+    }
+    if (alpha_half) {
+        cudaFree(alpha_half);
+        alpha_half = nullptr;
+    }
+    if (damp_half) {
+        cudaFree(damp_half);
+        damp_half = nullptr;
+    }
+    if (a_half) {
+        cudaFree(a_half);
+        a_half = nullptr;
+    }
+    if (b_half) {
+        cudaFree(b_half);
+        b_half = nullptr;
+    }
+    if (kappa_half) {
+        cudaFree(kappa_half);
+        kappa_half = nullptr;
     }
     if (psi_vx_x) {
         cudaFree(psi_vx_x);
@@ -114,7 +150,7 @@ void Cpml::read(const char *file) {
     fscanf(fp, "N = %f\n", &N);
     fscanf(fp, "cp_max = %f\n", &cp_max);
     fscanf(fp, "Rc = %f\n", &Rc);
-    fscanf(fp, "kappa = %f\n", &kappa);
+    fscanf(fp, "kappa0 = %f\n", &kappa0);
 
     printf("CPML parameters loaded.\n");
     fclose(fp);
@@ -125,21 +161,45 @@ __global__ void cpml_init_params(
 ) {
     int i = threadIdx.x;
     if (i >= cpml.thickness) return;
-    float x = 1.0 * i / cpml.thickness;
-    cpml.damp[i] = cpml.damp0 * powf(x, cpml.N);
-    cpml.alpha[i] = cpml.alpha0 * (1.0f - x);
+    float x_int = 1.0 * i / cpml.thickness;
+    float x_half = (i + 0.5f) / (cpml.thickness - 1);
 
-    cpml.b[i] = exp(
-        -(cpml.damp[i] / cpml.kappa + cpml.alpha[i]) * dt
+    // 整网格点
+    cpml.damp_int[i] = cpml.damp0 * powf(x_int, cpml.N);
+    cpml.alpha_int[i] = cpml.alpha0 * (1.0f - x_int);
+    cpml.kappa_int[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_int, cpml.N);
+
+    cpml.b_int[i] = exp(
+        -(cpml.damp_int[i] / cpml.kappa_int[i] + cpml.alpha_int[i]) * dt
     );
-    cpml.a[i] = cpml.damp[i] * (cpml.b[i] - 1) / (
-        cpml.kappa * (cpml.damp[i] + cpml.kappa * cpml.alpha[i])
+    cpml.a_int[i] = cpml.damp_int[i] * (cpml.b_int[i] - 1) / (
+        cpml.kappa_int[i] * (cpml.damp_int[i] + cpml.kappa_int[i] * cpml.alpha_int[i])
     );
-    
+
+    // 半网格点
+    cpml.damp_half[i] = cpml.damp0 * powf(x_half, cpml.N);
+    cpml.alpha_half[i] = cpml.alpha0 * (1.0f - x_half);
+    cpml.kappa_half[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_half, cpml.N);
+
+    cpml.b_half[i] = exp(
+        -(cpml.damp_half[i] / cpml.kappa_half[i] + cpml.alpha_half[i]) * dt
+    );
+    cpml.a_half[i] = cpml.damp_half[i] * (cpml.b_half[i] - 1) / (
+        cpml.kappa_half[i] * (cpml.damp_half[i] + cpml.kappa_half[i] * cpml.alpha_half[i])
+    );
+    // 在cpml_init_params核函数中添加
+if (i == 0) {
+    printf("Left PML: damp=%f, kappa=%f, a=%f, b=%f\n", 
+           cpml.damp_half[i], cpml.kappa_half[i], cpml.a_half[i], cpml.b_half[i]);
+}
+if (i == cpml.thickness-1) {
+    printf("Right PML: damp=%f, kappa=%f, a=%f, b=%f\n", 
+           cpml.damp_half[i], cpml.kappa_half[i], cpml.a_half[i], cpml.b_half[i]);
+}
 }
 
 void Cpml::init(Params::View gpar) {
-    damp0 = -(N + 1) * cp_max * log(Rc) / (2 * kappa * L);
+    damp0 = -(N + 1) * cp_max * log(Rc) / (2 * L);
     alpha0 = M_PI * gpar.fpeak;
     cpml_init_params<<<1, thickness>>>(
         view(), gpar.dx, gpar.dz, gpar.dt
@@ -150,10 +210,10 @@ __device__ int get_cpml_idx_x(
     const int &lx, const int &ix, const int &thickness
 ) {
     int res = -1;
-    int arr[] = {ix, lx - 1 - ix};
+    int arr[] = {ix - 4, lx - 1 - ix - 4};
     for (int i = 0; i < 2; i++) {
         if (0 <= arr[i] && arr[i] < thickness) {
-            res = max(res, arr[i]);
+            res = arr[i];
         }
     }
     return thickness - 1 - res;
@@ -163,10 +223,10 @@ __device__ int get_cpml_idx_z(
     const int &lz, const int &iz, const int &thickness
 ) {
     int res = -1;
-    int arr[] = {iz, lz - 1 - iz};
+    int arr[] = {iz - 4, lz - 1 - iz - 4};
     for (int i = 0; i < 2; i++) {
         if (0 <= arr[i] && arr[i] < thickness) {
-            res = max(res, arr[i]);
+            res = arr[i];
         }
     }
     return thickness - 1 - res;
@@ -185,29 +245,54 @@ __global__ void cpml_update_psi_vel(
     if (ix < 4 || ix >= nx - 4 || iz < 4 || iz >= nz - 4) {
         return;
     }
+    int pml_idx_x_int = get_cpml_idx_x(nx, ix, thickness);
+    int pml_idx_z_int = get_cpml_idx_z(nz, iz, thickness);
+    int pml_idx_x_half = get_cpml_idx_x(nx - 1, ix, thickness - 1);
+    int pml_idx_z_half = get_cpml_idx_z(nz - 1, iz, thickness - 1);
 
-    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness - 1);
-    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness - 1);
-
-    if (pml_idx_x_half_x < thickness - 1) {
-        float a_val = pml.a[pml_idx_x_half_x];
-        float b_val = pml.b[pml_idx_x_half_x];
-        float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
+    if (pml_idx_x_int < thickness) {
+        float a_int = pml.a_int[pml_idx_x_int];
+        float b_int = pml.b_int[pml_idx_x_int];
         float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, dx);
-        
-        PVX_X(ix, iz) = b_val * PVX_X(ix, iz) + a_val * dvx_dx;
-        PVZ_X(ix, iz) = b_val * PVZ_X(ix, iz) + a_val * dvz_dx;
+        PVZ_X(ix, iz) = b_int * PVZ_X(ix, iz) + a_int * dvz_dx;
     }
-
-    if (pml_idx_z_half_z < thickness - 1) {
-        float a_val = pml.a[pml_idx_z_half_z];
-        float b_val = pml.b[pml_idx_z_half_z];
-        float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
+    if (pml_idx_z_int < thickness) {
+        float a_int = pml.a_int[pml_idx_z_int];
+        float b_int = pml.b_int[pml_idx_z_int];
         float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, dz);
-
-        PVX_Z(ix, iz) = b_val * PVX_Z(ix, iz) + a_val * dvx_dz;
-        PVZ_Z(ix, iz) = b_val * PVZ_Z(ix, iz) + a_val * dvz_dz;
+        PVX_Z(ix, iz) = b_int * PVX_Z(ix, iz) + a_int * dvx_dz;
+    } 
+    if (pml_idx_x_half < thickness - 1) {
+        float a_half = pml.a_half[pml_idx_x_half];
+        float b_half = pml.b_half[pml_idx_x_half];
+        float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
+        PVX_X(ix, iz) = b_half * PVX_X(ix, iz) + a_half * dvx_dx;
     }
+    if (pml_idx_z_half < thickness - 1) {
+        float a_half = pml.a_half[pml_idx_z_half];
+        float b_half = pml.b_half[pml_idx_z_half];
+        float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
+        PVZ_Z(ix, iz) = b_half * PVZ_Z(ix, iz) + a_half * dvz_dz;
+    }
+    // if (pml_idx_x_half_x < thickness - 1) {
+    //     float a_half = pml.a_half[pml_idx_x_half_x];
+    //     float b_half = pml.b_half[pml_idx_x_half_x];
+    //     float dvx_dx = Dx_half_8th(gc.vx, ix, iz, nx - 1, dx);
+    //     float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, dx);
+
+    //     PVX_X(ix, iz) = b_half * PVX_X(ix, iz) + a_half * dvx_dx;
+    //     PVZ_X(ix, iz) = b_half * PVZ_X(ix, iz) + a_half * dvz_dx;
+    // }
+
+    // if (pml_idx_z_half_z < thickness - 1) {
+    //     float a_val = pml.a_half[pml_idx_z_half_z];
+    //     float b_val = pml.b_half[pml_idx_z_half_z];
+    //     float dvz_dz = Dz_half_8th(gc.vz, ix, iz, nx, dz);
+    //     float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, dz);
+
+    //     PVX_Z(ix, iz) = b_val * PVX_Z(ix, iz) + a_val * dvx_dz;
+    //     PVZ_Z(ix, iz) = b_val * PVZ_Z(ix, iz) + a_val * dvz_dz;
+    // }
 }
 
 __global__ void cpml_update_psi_stress(
@@ -226,42 +311,35 @@ __global__ void cpml_update_psi_stress(
 
     int pml_idx_x_int = get_cpml_idx_x(nx, ix, thickness);
     int pml_idx_z_int = get_cpml_idx_z(nz, iz, thickness);
-    int pml_idx_x_half_x = get_cpml_idx_x(nx - 1, ix, thickness - 1);
-    int pml_idx_z_half_z = get_cpml_idx_z(nz - 1, iz, thickness - 1);
+    int pml_idx_x_half = get_cpml_idx_x(nx - 1, ix, thickness - 1);
+    int pml_idx_z_half = get_cpml_idx_z(nz - 1, iz, thickness - 1);
 
-    if (pml_idx_x_int < thickness) {
-        float a_val = pml.a[pml_idx_x_int];
-        float b_val = pml.b[pml_idx_x_int];
+    if (pml_idx_x_int < thickness) { 
+        float a_int = pml.a_int[pml_idx_x_int];
+        float b_int = pml.b_int[pml_idx_x_int];
         float dsx_dx = Dx_int_8th(gc.sx, ix, iz, nx, dx);
-
-        PSX_X(ix, iz) = b_val * PSX_X(ix, iz) + a_val * dsx_dx;
-        PSZ_X(ix, iz) = b_val * PSZ_X(ix, iz) + a_val * dsx_dx;
+        float dsz_dx = Dx_int_8th(gc.sz, ix, iz, nx, dx);
+        PSX_X(ix, iz) = b_int * PSX_X(ix, iz) + a_int * dsx_dx;
+        PSZ_X(ix, iz) = b_int * PSZ_X(ix, iz) + a_int * dsz_dx;
     }
-    
     if (pml_idx_z_int < thickness) {
-        float a_val = pml.a[pml_idx_z_int];
-        float b_val = pml.b[pml_idx_z_int];
+        float a_int = pml.a_int[pml_idx_z_int];
+        float b_int = pml.b_int[pml_idx_z_int];
+        float dsx_dz = Dz_int_8th(gc.sx, ix, iz, nx, dz);
         float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, dz);
-
-        PSX_Z(ix, iz) = b_val * PSX_Z(ix, iz) + a_val * dsz_dz;
-        PSZ_Z(ix, iz) = b_val * PSZ_Z(ix, iz) + a_val * dsz_dz;
+        PSX_Z(ix, iz) = b_int * PSX_Z(ix, iz) + a_int * dsx_dz;
+        PSZ_Z(ix, iz) = b_int * PSZ_Z(ix, iz) + a_int * dsz_dz;
     }
-    
-    if (ix < nx - 1 && iz < nz - 1) {
-        if (pml_idx_x_half_x < thickness - 1) {
-            float a_val = pml.a[pml_idx_x_half_x];
-            float b_val = pml.b[pml_idx_x_half_x];
-            float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
-
-            PTXZ_X(ix, iz) = b_val * PTXZ_X(ix, iz) + a_val * dtxz_dx;
-        }
-
-        if (pml_idx_z_half_z < thickness - 1) {
-            float a_val = pml.a[pml_idx_z_half_z];
-            float b_val = pml.b[pml_idx_z_half_z];
-            float dtxz_dz = Dz_half_8th(gc.txz, ix, iz, nx - 1, dz);
-
-            PTXZ_Z(ix, iz) = b_val * PTXZ_Z(ix, iz) + a_val * dtxz_dz;
-        }
+    if (pml_idx_x_half < thickness - 1) {
+        float a_half = pml.a_half[pml_idx_x_half];
+        float b_half = pml.b_half[pml_idx_x_half];
+        float dtxz_dx = Dx_half_8th(gc.txz, ix, iz, nx - 1, dx);
+        PTXZ_X(ix, iz) = b_half * PTXZ_X(ix, iz) + a_half * dtxz_dx;
+    }
+    if (pml_idx_z_half < thickness - 1) {
+        float a_half = pml.a_half[pml_idx_z_half];
+        float b_half = pml.b_half[pml_idx_z_half];
+        float dtxz_dz = Dz_half_8th(gc.txz, ix, iz, nx - 1, dz);
+        PTXZ_Z(ix, iz) = b_half * PTXZ_Z(ix, iz) + a_half * dtxz_dz;
     }
 }
