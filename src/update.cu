@@ -114,19 +114,39 @@ __global__ void apply_free_boundary(Grid_Core::View gc) {
 
     int nx = gc.nx, nz = gc.nz;
 
-    if (ix == 3) {
+    // =====整网格点=====
+    // 左边界/上边界
+    if (ix == 3 && iz >= 3 && iz <= nz - 5) {
         SX(ix, iz) = SZ(ix, iz) = 0;
     }
-    if (iz == 3) {
+    if (iz == 3 && ix >= 3 && ix <= nx - 5) {
         SX(ix, iz) = SZ(ix, iz) = 0;
     }
-    if (ix == 4) {
+
+    // 右边界/下边界
+    if (ix == nx - 5 && iz >= 3 && iz <= nz - 5) {
+        SX(ix, iz) = SZ(ix, iz) = 0;
+    }
+    if (iz == nz - 5 && ix >= 3 && ix <= nx - 5) {
+        SX(ix, iz) = SZ(ix, iz) = 0;
+    }
+    // ==================
+
+    // =====半网格点=====
+    // 左边界/上边界
+    if (ix == 4 && iz >= 4 && iz <= nz - 5) {
         TXZ(ix, iz) = 0;
     }
-    if (iz == 4) {
+    if (iz == 4 && ix >= 4 && ix <= nx - 5) {
         TXZ(ix, iz) = 0;
     }
-    if (ix == nx - 5 || iz == nz - 5) {
-        SX(ix, iz) = SZ(ix, iz) = TXZ(ix, iz) = 0;
+
+    // 右边界/下边界
+    if (ix == nx - 5 && iz >= 4 && iz <= nz - 4) {
+        TXZ(ix, iz) = 0;
     }
+    if (iz == nz - 5 && ix >= 4 && ix <= nx - 4) {
+        TXZ(ix, iz) = 0;
+    }
+    // ==================
 }

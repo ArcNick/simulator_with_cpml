@@ -51,7 +51,6 @@ int main() {
     float ppw = 1900.0f / (2.1 * par.fpeak * par.dx);
     printf("PPW: 最小ppw = 7, 实际ppw = %f\n", ppw);
     
-
     // 迁移CPU上模型到GPU上
     gm_device.memcpy_to_device_from(gm_readin);
 
@@ -106,7 +105,8 @@ int main() {
 
         // 自由边界
         apply_free_boundary<<<gridSize, blockSize>>>(gc_device.view());
-
+        cudaDeviceSynchronize();
+        
         if (it % 100 == 0) {
             printf("\r%%%0.2f finished.", 1.0f * it / nt * 100);
             fflush(stdout);

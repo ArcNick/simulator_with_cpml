@@ -27,23 +27,6 @@ void Params::read(const char *file) {
     fclose(fp);
 }
 
-// __global__ void lame(
-//     float *vp, float *vs, float *rho, float *mu, float *lmd,
-//     int nx, int nz, bool mem_location
-// ) {
-//     if (mem_location != DEVICE_MEM) {
-//         printf("RE in \"calc_lame\"!\n");
-//         return;
-//     }
-//     int ix = blockIdx.x * blockDim.x + threadIdx.x;
-//     int iz = blockIdx.y * blockDim.y + threadIdx.y;
-//     if (ix < nx && iz < nz) {
-//         int idx = iz * nx + ix;
-//         lmd[idx] = rho[idx] * (vp[idx] * vp[idx] - 2 * vs[idx] * vs[idx]);
-//         mu[idx] = rho[idx] * vs[idx] * vs[idx];
-//     }
-// }
-
 Grid_Model::Grid_Model(int nx, int nz, bool mem_location) 
     : nx(nx), nz(nz), mem_location(mem_location) {
     if (mem_location == HOST_MEM) {
@@ -192,7 +175,6 @@ void Grid_Model::read(const std::array<const char *, 6> &files) {
     for (int i = 0; i < 6; i++) {
         fp = fopen(files[i], "rb");
         for (int iz = 0; iz < nz; iz++) {
-            // printf("Reading %s : %d / %d\n", files[i], iz, nz);
             fread(dst[i] + iz * nx, sizeof(float), nx, fp);
         }
         printf("Finished reading %s\n", files[i]);
@@ -214,14 +196,6 @@ void Grid_Model::memcpy_to_device_from(const Grid_Model &rhs) {
     cudaMemcpy(delta, rhs.delta, total_bytes, cudaMemcpyHostToDevice);
     cudaMemcpy(gamma, rhs.gamma, total_bytes, cudaMemcpyHostToDevice);
 }
-
-// void Grid_Model::calc_lame() {
-//     dim3 gridSize((nx + 15) / 16, (nz + 15) / 16);
-//     dim3 blockSize(16, 16);
-//     lame<<<gridSize, blockSize>>>(
-//         vp0, vs0, rho, mu, lmd, nx, nz, mem_location
-//     );
-// }
 
 void Grid_Model::calc_stiffness() {
     dim3 gridSize((nx + 15) / 16, (nz + 15) / 16);

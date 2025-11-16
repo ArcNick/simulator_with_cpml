@@ -2,4 +2,4 @@ thickness = 20
 N = 3
 cp_max = 3600
 Rc = 0.001
-kappa0 = 1.5
+kappa0 = 2

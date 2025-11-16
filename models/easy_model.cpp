@@ -3,11 +3,11 @@
 #include <string>
 #include <unordered_map>
 
-float a[601][601];
+float a[401][401];
 
 std::unordered_map<std::string, std::pair<float, float>> params;
 int main() {
-    int nz = 601, nx = 601;
+    int nz = 401, nx = 401;
 
     params["vp0"] = {3600, 3600};
     params["vs0"] = {1900, 1900};
@@ -16,6 +16,7 @@ int main() {
     params["delta"] = {0, 0};
     params["gamma"] = {0, 0};
 
+    // ======密度ρ=====
     FILE *fp = fopen("rho.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {
@@ -30,6 +31,7 @@ int main() {
         fwrite(a[i], sizeof(float), nx, fp);
     }
     
+    // ======波速vp=====
     fp = fopen("vp.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {
@@ -44,6 +46,7 @@ int main() {
         fwrite(a[i], sizeof(float), nx, fp);
     }
     
+    // ======波速vs=====
     fp = fopen("vs.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {
@@ -58,6 +61,7 @@ int main() {
         fwrite(a[i], sizeof(float), nx, fp);
     }
 
+    // ======γ=====
     fp = fopen("gamma.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {
@@ -72,6 +76,7 @@ int main() {
         fwrite(a[i], sizeof(float), nx, fp);
     }
 
+    // ======ε=====
     fp = fopen("epsilon.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {
@@ -86,7 +91,7 @@ int main() {
         fwrite(a[i], sizeof(float), nx, fp);
     }
 
-
+    // ======δ=====
     fp = fopen("delta.bin", "wb");
     for (int i = 0; i < nz; i++) {
         for (int j = 0; j < nx; j++) {

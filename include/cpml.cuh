@@ -1,7 +1,7 @@
 #ifndef CPML_CUH
 #define CPML_CUH
 
-#include <init.cuh>
+#include "init.cuh"
 #include <cmath>
 
 #define PVX_X(ix, iz) (pml.psi_vx_x[(iz) * (pml.nx - 1) + (ix)])
@@ -110,14 +110,6 @@ __device__ int get_cpml_idx_x_int(int lx, int ix, int thickness);
 __device__ int get_cpml_idx_z_int(int lz, int iz, int thickness);
 __device__ int get_cpml_idx_x_half(int lx, int ix, int thickness);
 __device__ int get_cpml_idx_z_half(int lz, int iz, int thickness);
-
-// __device__ int get_cpml_idx_x(
-//     const int &lx, const int &ix, const int &thickness
-// );
-
-// __device__ int get_cpml_idx_z(
-//     const int &lz, const int &iz, const int &thickness
-// );
 
 __global__ void cpml_update_psi_vel(
     Grid_Core::View gc, Grid_Model::View gm, 
