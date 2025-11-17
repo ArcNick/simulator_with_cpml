@@ -109,44 +109,32 @@ __global__ void update_velocity(
 }
 
 __global__ void apply_free_boundary(Grid_Core::View gc) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
-
+    int idx = threadIdx.x;
     int nx = gc.nx, nz = gc.nz;
 
-    // =====整网格点=====
-    // 左边界/上边界
-    if (ix == 3 && iz >= 3 && iz <= nz - 5) {
-        SX(ix, iz) = SZ(ix, iz) = 0;
-    }
-    if (iz == 3 && ix >= 3 && ix <= nx - 5) {
-        SX(ix, iz) = SZ(ix, iz) = 0;
+    // x 在整网格点上
+    if (3 <= idx && idx <= nx - 5) {
+        SX(idx, 3) = SX(idx, nz - 5) = 0;
+        SZ(idx, 3) = SZ(idx, nz - 5) = 0;
+        VZ(idx, 4) = VZ(idx, nz - 5) = 0;
     }
 
-    // 右边界/下边界
-    if (ix == nx - 5 && iz >= 3 && iz <= nz - 5) {
-        SX(ix, iz) = SZ(ix, iz) = 0;
-    }
-    if (iz == nz - 5 && ix >= 3 && ix <= nx - 5) {
-        SX(ix, iz) = SZ(ix, iz) = 0;
-    }
-    // ==================
-
-    // =====半网格点=====
-    // 左边界/上边界
-    if (ix == 4 && iz >= 4 && iz <= nz - 5) {
-        TXZ(ix, iz) = 0;
-    }
-    if (iz == 4 && ix >= 4 && ix <= nx - 5) {
-        TXZ(ix, iz) = 0;
+    // x 在半网格点上
+    if (4 <= idx && idx <= nx - 5) {
+        VX(idx, 3) = VX(idx, nz - 5) = 0;
+        TXZ(idx, 4) = TXZ(idx, nz - 5) = 0;
     }
 
-    // 右边界/下边界
-    if (ix == nx - 5 && iz >= 4 && iz <= nz - 4) {
-        TXZ(ix, iz) = 0;
+    // z 在整网格点上
+    if (3 <= idx && idx <= nz - 5) {
+        SX(3, idx) = SX(nx - 5, idx) = 0;
+        SZ(3, idx) = SZ(nx - 5, idx) = 0;
+        VX(4, idx) = VZ(nx - 5, idx) = 0;
     }
-    if (iz == nz - 5 && ix >= 4 && ix <= nx - 4) {
-        TXZ(ix, iz) = 0;
+
+    // z 在半网格点上
+    if (4 <= idx && idx <= nz - 5) {
+        VZ(3, idx) = VZ(nx - 5, idx) = 0;
+        TXZ(4, idx) = TXZ(nx - 5, idx) = 0;
     }
-    // ==================
 }

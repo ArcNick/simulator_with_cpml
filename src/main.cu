@@ -5,7 +5,6 @@
 #include <cuda_runtime.h>
 #include <cstdio>
 #include <array>
-#include <iostream>
 
 int main() {
     // 读取参数
@@ -83,7 +82,7 @@ int main() {
         );
         cudaDeviceSynchronize();
         
-        // ψ_stress更新
+        // ψ_stress 更新
         cpml_update_psi_stress<<<gridSize, blockSize>>>(
             gc_device.view(), gm_device.view(), cpml.view(), 
             par.dx, par.dz, par.dt
@@ -97,14 +96,14 @@ int main() {
         );
         cudaDeviceSynchronize();
         
-        // ψ_vel更新
+        // ψ_vel 更新
         cpml_update_psi_vel<<<gridSize, blockSize>>>(
             gc_device.view(), gm_device.view(), cpml.view(), 
             par.dx, par.dz, par.dt
         );
 
         // 自由边界
-        apply_free_boundary<<<gridSize, blockSize>>>(gc_device.view());
+        apply_free_boundary<<<1, std::max(nx, nz)>>>(gc_device.view());
         cudaDeviceSynchronize();
         
         if (it % 100 == 0) {
@@ -114,10 +113,8 @@ int main() {
 
         // 输出波场快照
         if (it % par.snapshot == 0) {
-            // 先拷贝到host
+            // 拷贝到 host 输出波场快照
             gc_host.memcpy_to_host_from(gc_device);
-
-            // 输出二进制文件
             sshot.output(it, par.dt);
         }
     }
